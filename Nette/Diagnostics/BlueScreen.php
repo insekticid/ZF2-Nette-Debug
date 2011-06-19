@@ -21,7 +21,7 @@ use Nette;
  * @author     David Grudl
  * @internal
  */
-class BlueScreen extends Nette\Object
+class BlueScreen
 {
 	/** @var array */
 	private $panels = array();

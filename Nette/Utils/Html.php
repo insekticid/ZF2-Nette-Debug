@@ -28,7 +28,7 @@ use Nette;
  *
  * @author     David Grudl
  */
-class Html extends Nette\Object implements \ArrayAccess, \Countable, \IteratorAggregate
+class Html implements \ArrayAccess, \Countable, \IteratorAggregate
 {
 	/** @var string  element's name */
 	private $name;

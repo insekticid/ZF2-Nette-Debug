@@ -21,7 +21,7 @@ use Nette;
  * @author     David Grudl
  * @internal
  */
-class Bar extends Nette\Object
+class Bar
 {
 	/** @var array */
 	private $panels = array();
