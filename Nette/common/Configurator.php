@@ -110,35 +110,6 @@ class Configurator extends Object
 			}
 		}
 
-		// process services
-		if (isset($config['services'])) {
-			foreach ($config['services'] as $key => & $def) {
-				if (preg_match('#^Nette\\\\.*\\\\I?([a-zA-Z]+)$#', strtr($key, '-', '\\'), $m)) { // back compatibility
-					$m[1][0] = strtolower($m[1][0]);
-					trigger_error(basename($file) . ": service name '$key' has been renamed to '$m[1]'", E_USER_WARNING);
-					$key = $m[1];
-				}
-
-				if (is_array($def)) {
-					if (method_exists(get_called_class(), "createService$key") && !isset($def['factory']) && !isset($def['class'])) {
-						$def['factory'] = array(get_called_class(), "createService$key");
-					}
-
-					if (isset($def['option'])) {
-						$def['arguments'][] = $def['option'];
-					}
-
-					if (!empty($def['run'])) {
-						$def['tags'] = array('run');
-					}
-				}
-			}
-			$builder = new DI\ContainerBuilder;
-			/**/$code .= $builder->generateCode($config['services']);/**/
-			/*5.2* $code .= '$builder = new '.get_class($builder).'; $builder->addDefinitions($container, '.var_export($config['services'], TRUE).');';*/
-			unset($config['services']);
-		}
-
 		// consolidate variables
 		if (!isset($config['variables'])) {
 			$config['variables'] = array();
@@ -188,11 +159,72 @@ class Configurator extends Object
 			}
 		}
 
+		// process services
+		if (isset($config['services'])) {
+			$builder = new DI\ContainerBuilder;
+			foreach ($config['services'] as $key => $def) {
+				if (preg_match('#^Nette\\\\.*\\\\I?([a-zA-Z]+)$#', strtr($key, '-', '\\'), $m)) { // back compatibility
+					$m[1][0] = strtolower($m[1][0]);
+					trigger_error(basename($file) . ": service name '$key' has been renamed to '$m[1]'", E_USER_WARNING);
+					$key = $m[1];
+				}
+
+				if (is_array($def)) {
+					$definition = $builder->addDefinition($key, isset($def['class']) ? $def['class'] : NULL, !empty($def['prefer']));
+
+					if (isset($def['arguments'])) {
+						$definition->setArguments(array_diff($def['arguments'], array('...')));
+					}
+
+					if (isset($def['methods'])) {
+						foreach ($def['methods'] as $item) {
+							$definition->addMethodCall($item[0], isset($item[1]) ? array_diff($item[1], array('...')) : array());
+						}
+					}
+
+					if (isset($def['factory'])) {
+						$definition->setFactory($def['factory']);
+					} elseif (method_exists(get_called_class(), "createService$key") && !isset($def['factory']) && !isset($def['class'])) {
+						$definition->setFactory(array(get_called_class(), "createService$key"));
+					}
+
+					if (isset($def['option'])) {
+						$definition->arguments[] = $def['option'];
+					}
+
+					if (!empty($def['run'])) {
+						$definition->addTag('run');
+					}
+
+					if (isset($def['tags'])) {
+						foreach ($def['tags'] as $tag => $attrs) {
+							if (is_int($tag) && is_string($attrs)) {
+								$definition->addTag($attrs);
+							} else {
+								$definition->addTag($tag, $attrs);
+							}
+						}
+					}
+
+					$def = array_diff(array_keys($def), array('class', 'prefer', 'arguments', 'methods', 'factory', 'option', 'run', 'tags'));
+					if ($def) {
+						throw new Nette\InvalidStateException("Unknown key '" . implode("', '", $def) . "' in definition of service '$key'.");
+					}
+
+				} elseif (is_scalar($def)) {
+					$builder->addDefinition($key, $def);
+				}
+			}
+
+			$code .= $builder->generateCode();
+			// auto-start services
+			foreach ($builder->findByTag("run") as $name => $foo) {
+				$code .= $this->generateCode('$container->getService(?)', $name);
+			}
+		}
+
 		// pre-loading
 		$code .= self::preloadEnvironment($container);
-
-		// auto-start services
-		$code .= 'foreach ($container->getServiceNamesByTag("run") as $name => $foo) { $container->getService($name); }' . "\n";
 
 		$cache->save($cacheKey, $code, array(
 			Cache::FILES => $file,
