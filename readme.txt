@@ -7,24 +7,24 @@ Installation
 
 Add Nette namespace to your autoloader
 
-    protected function initAutoloader()
+    public function getAutoloaderConfig()
     {
-        \Zend\Loader\AutoloaderFactory::factory(array(
+        return array(
             'Zend\Loader\StandardAutoloader' => array(
                 'namespaces' => array(
                     'Nette'   =>  __DIR__ . '/../library/Nette'
                 ),
             ),
-        ));
+        );
     }
     
 Init Debug in your Zend bootstrap file
 
-	protected function initDebug($env = 'production')
+	protected function initDebug()
 	{
 		include_once('Nette\Diagnostics\exceptions.php');
 
-		if ( 'production' !== $env && 'testing' !== $env )
+		if ( 'production' !== APPLICATION_ENV )
 		{
 			\Nette\Diagnostics\Debugger::_init();
 			\Nette\Diagnostics\Debugger::enable();
