@@ -11,7 +11,9 @@
 
 namespace Nette\DI;
 
-use Nette;
+use Nette,
+	Nette\Utils\PhpGenerator\Helpers,
+	Nette\Utils\PhpGenerator\PhpLiteral;
 
 
 
@@ -27,8 +29,8 @@ class ContainerBuilder extends Nette\Object
 
 	/** @var array */
 	private $classes = array(
-		'nette\di\container' => array(TRUE => array('self')),
-		'nette\di\icontainer' => array(TRUE => array('self')),
+		'nette\di\container' => array(TRUE => array('container')),
+		'nette\di\icontainer' => array(TRUE => array('container')),
 	);
 
 
@@ -69,9 +71,9 @@ class ContainerBuilder extends Nette\Object
 		$code = '';
 		foreach ($this->definitions as $name => $foo) {
 			try {
-				$code .= '$container->addService(' . $this->varExport($name) . ", function(\$container) {\n"
-					. Nette\Utils\Strings::indent($this->generateFactory($name), 1)
-					. "\n});\n\n";
+				$method = new Nette\Utils\PhpGenerator\Method;
+				$method->setBody($this->generateFactory($name))->addParameter('container');
+				$code .= Helpers::generate('$container->addService', $name, new PhpLiteral($method)) . "\n\n";
 			} catch (\Exception $e) {
 				throw new ServiceCreationException("Error creating service '$name': {$e->getMessage()}", 0, $e);
 			}
@@ -92,22 +94,21 @@ class ContainerBuilder extends Nette\Object
 		$code = '';
 
 		if ($definition->factory) {
-			$factory = is_array($definition->factory) ? $definition->factory : explode('::', $definition->factory);
-			array_unshift($arguments, '@self');
+			$callback = is_array($definition->factory) ? $definition->factory : explode('::', $definition->factory);
 			$code .= '$service = ';
 
-			if (preg_match('#^@\w+$#', $factory[0]) && self::isExpanded($factory[1])) {
-				if (isset($this->definitions[substr($factory[0], 1)]->class)) {
-					$arguments = $this->autowireArguments($this->definitions[substr($factory[0], 1)]->class, $factory[1], $arguments);
+			if (preg_match('#^@\w+$#', $callback[0]) && isset($callback[1]) && self::isExpanded($callback[1])) {
+				if (isset($this->definitions[substr($callback[0], 1)]->class)) {
+					$arguments = $this->autowireArguments($this->definitions[substr($callback[0], 1)]->class, $callback[1], $arguments);
 				}
-				$code .= $this->argsExport(array($factory[0])) . "->$factory[1](";
+				$code .= $this->argsExport(array($callback[0])) . "->$callback[1](";
 
-			} elseif (self::isExpanded($factory[0]) && self::isExpanded($factory[1])) {
-				$arguments = $this->autowireArguments($factory[0], $factory[1], $arguments);
-				$code .= implode('::', $factory) . '(';
+			} elseif (self::isExpanded($callback[0]) && isset($callback[1]) && self::isExpanded($callback[1])) {
+				$arguments = $this->autowireArguments($callback[0], $callback[1], $arguments);
+				$code .= implode('::', $callback) . '(';
 
 			} else {
-				$code .= 'call_user_func(' . $this->argsExport(array($factory)) . ', ';
+				$code .= 'call_user_func(' . $this->argsExport(isset($callback[1]) ? array($callback) : $callback) . ($arguments ? ', ' : '');
 			}
 			$code .= $this->argsExport($arguments) . ");\n";
 
@@ -133,17 +134,32 @@ class ContainerBuilder extends Nette\Object
 			$code .= $arguments ? "({$this->argsExport($arguments)});\n" : ";\n";
 		}
 
-		foreach ((array) $definition->methods as $method) {
-			$arguments = is_array($method[1]) ? $method[1] : array();
-			if (self::isExpanded($method[0])) {
-				if ($definition->class && self::isExpanded($definition->class)) {
-					$arguments = $this->autowireArguments($definition->class, $method[0], $arguments);
-				}
-				$code .= "\$service->$method[0]";
+		foreach ((array) $definition->calls as $callback) {
+			$arguments = is_array($callback[1]) ? $callback[1] : array();
+
+			if (is_array($callback[0])) {
+				$callback = $callback[0];
 			} else {
-				$code .= '$method = ' . $this->argsExport(array($method[0])) . '; $service->$method';
+				$callback = explode('::', $callback[0]);
+				if (!isset($callback[1])) {
+					array_unshift($callback, '@self');
+				}
 			}
-			$code .= "({$this->argsExport($arguments)});\n";
+
+			if (preg_match('#^@\w+$#', $callback[0]) && isset($callback[1]) && self::isExpanded($callback[1])) {
+				if (isset($this->definitions[substr($callback[0], 1)]->class)) {
+					$arguments = $this->autowireArguments($this->definitions[substr($callback[0], 1)]->class, $callback[1], $arguments);
+				}
+				$code .= $this->argsExport(array($callback[0]), $name) . "->$callback[1](";
+
+			} elseif (self::isExpanded($callback[0]) && isset($callback[1]) && self::isExpanded($callback[1])) {
+				$arguments = $this->autowireArguments($callback[0], $callback[1], $arguments);
+				$code .= implode('::', $callback) . '(';
+
+			} else {
+				$code .= 'call_user_func(' . $this->argsExport(isset($callback[1]) ? array($callback) : $callback, $name) . ($arguments ? ', ' : '');
+			}
+			$code .= $this->argsExport($arguments, $name) . ");\n";
 		}
 
 		return $code .= 'return $service;';
@@ -268,22 +284,22 @@ class ContainerBuilder extends Nette\Object
 
 
 
-	private static function argsExport($args)
+	private static function argsExport($args, $self = NULL)
 	{
-		$args = implode(', ', array_map(array(__CLASS__, 'varExport'), $args));
-		$args = preg_replace("#(?<!\\\)'@self'#", '\$container', $args);
-		$args = preg_replace("#(?<!\\\)'@([a-zA-Z_]\w*)'#", '\$container->$1', $args);
-		$args = preg_replace("#(?<!\\\)'@(\w+)'#", '\$container->{\'$1\'}', $args);
-		$args = preg_replace("#(?<!\\\)'%([\w-]+)%'#", '\$container->params[\'$1\']', $args);
-		$args = preg_replace("#(?<!\\\)'(?:[^'\\\]|\\\.)*%(?:[^'\\\]|\\\.)*'#", 'Nette\Utils\Strings::expand($0, \$container->params)', $args);
-		return $args;
-	}
-
-
-
-	private static function varExport($arg)
-	{
-		return preg_replace('#\n *#', ' ', var_export($arg, TRUE));
+		array_walk_recursive($args, function(&$val) use ($self) {
+			if (!is_string($val)) {
+				return;
+			} elseif ($val === '@container') {
+				$val = new PhpLiteral('$container');
+			} elseif (preg_match('#^@\w+$#', $val)) {
+				$val = new PhpLiteral($val === "@$self" || $val === '@self' ? '$service' : '$container->' . Helpers::dumpMember(substr($val, 1)));
+			} elseif (preg_match('#^%[\w-]+%$#', $val)) {
+				$val = new PhpLiteral('$container->parameters[' . Helpers::dump(substr($val, 1, -1)) . ']');
+			} elseif (strpos($val, '%') !== FALSE) {
+				$val = new PhpLiteral('Nette\Utils\Strings::expand(' . Helpers::dump($val) . ', $container->parameters)');
+			}
+		});
+		return implode(', ', array_map(array('Nette\Utils\PhpGenerator\Helpers', 'dump'), $args));
 	}
 
 

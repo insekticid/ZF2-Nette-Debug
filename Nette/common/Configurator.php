@@ -46,12 +46,12 @@ class Configurator extends Object
 			}
 		}
 
-		defined('WWW_DIR') && $this->container->params['wwwDir'] = realpath(WWW_DIR);
-		defined('APP_DIR') && $this->container->params['appDir'] = realpath(APP_DIR);
-		defined('LIBS_DIR') && $this->container->params['libsDir'] = realpath(LIBS_DIR);
-		defined('TEMP_DIR') && $this->container->params['tempDir'] = realpath(TEMP_DIR);
-		$this->container->params['productionMode'] = self::detectProductionMode();
-		$this->container->params['consoleMode'] = PHP_SAPI === 'cli';
+		defined('WWW_DIR') && $this->container->parameters['wwwDir'] = realpath(WWW_DIR);
+		defined('APP_DIR') && $this->container->parameters['appDir'] = realpath(APP_DIR);
+		defined('LIBS_DIR') && $this->container->parameters['libsDir'] = realpath(LIBS_DIR);
+		defined('TEMP_DIR') && $this->container->parameters['tempDir'] = realpath(TEMP_DIR);
+		$this->container->parameters['productionMode'] = self::detectProductionMode();
+		$this->container->parameters['consoleMode'] = PHP_SAPI === 'cli';
 	}
 
 
@@ -85,12 +85,12 @@ class Configurator extends Object
 			if (PHP_SAPI === 'cli') {
 				$section = Environment::CONSOLE;
 			} else {
-				$section = $container->params['productionMode'] ? Environment::PRODUCTION : Environment::DEVELOPMENT;
+				$section = $container->parameters['productionMode'] ? Environment::PRODUCTION : Environment::DEVELOPMENT;
 			}
 		}
 
 		$cache = new Cache($container->templateCacheStorage, 'Nette.Configurator');
-		$cacheKey = array((array) $container->params, $file, $section);
+		$cacheKey = array((array) $container->parameters, $file, $section);
 		$cached = $cache->load($cacheKey);
 		if ($cached) {
 			require $cached['file'];
@@ -101,34 +101,42 @@ class Configurator extends Object
 		$config = Nette\Config\Config::fromFile($file, $section);
 		$code = "<?php\n// source file $file\n\n";
 
-		// back compatibility with singular names
-		foreach (array('service', 'variable') as $item) {
-			if (isset($config[$item])) {
-				trigger_error(basename($file) . ": Section '$item' is deprecated; use plural form '{$item}s' instead.", E_USER_WARNING);
-				$config[$item . 's'] = $config[$item];
-				unset($config[$item]);
+		// obsolete and deprecated structures
+		foreach (array('service' => 'services', 'variable' => 'parameters', 'variables' => 'parameters', 'mode' => 'parameters', 'const' => 'constants') as $old => $new) {
+			if (isset($config[$old])) {
+				throw new Nette\DeprecatedException(basename($file) . ": Section '$old' is deprecated; use '$new' instead.");
+			}
+		}
+		if (isset($config['services'])) {
+			foreach ($config['services'] as $key => $def) {
+				foreach (array('option' => 'arguments', 'methods' => 'calls') as $old => $new) {
+					if (isset($def[$old])) {
+						throw new Nette\DeprecatedException(basename($file) . ": Section '$old' in service definition is deprecated; refactor it into '$new'.");
+					}
+				}
 			}
 		}
 
-		// consolidate variables
-		if (!isset($config['variables'])) {
-			$config['variables'] = array();
+
+		// consolidate parameters
+		if (!isset($config['parameters'])) {
+			$config['parameters'] = array();
 		}
 		foreach ($config as $key => $value) {
-			if (!in_array($key, array('variables', 'services', 'php', 'const', 'mode'))) {
-				$config['variables'][$key] = $value;
+			if (!in_array($key, array('parameters', 'services', 'php', 'constants'))) {
+				$config['parameters'][$key] = $value;
 			}
 		}
 
-		// pre-expand variables at compile-time
-		$variables = $config['variables'];
-		array_walk_recursive($config, function(&$val) use ($variables) {
-			$val = Configurator::preExpand($val, $variables);
+		// pre-expand parameters at compile-time
+		$parameters = $config['parameters'];
+		array_walk_recursive($config, function(&$val) use ($parameters) {
+			$val = Configurator::preExpand($val, $parameters);
 		});
 
-		// add variables
-		foreach ($config['variables'] as $key => $value) {
-			$code .= $this->generateCode('$container->params[?] = ?', $key, $value);
+		// add parameters
+		foreach ($config['parameters'] as $key => $value) {
+			$code .= $this->generateCode('$container->parameters[?] = ?', $key, $value);
 		}
 
 		// PHP settings
@@ -145,17 +153,9 @@ class Configurator extends Object
 		}
 
 		// define constants
-		if (isset($config['const'])) {
-			foreach ($config['const'] as $key => $value) {
+		if (isset($config['constants'])) {
+			foreach ($config['constants'] as $key => $value) {
 				$code .= $this->generateCode('define', $key, $value);
-			}
-		}
-
-		// set modes - back compatibility
-		if (isset($config['mode'])) {
-			foreach ($config['mode'] as $mode => $state) {
-				trigger_error(basename($file) . ": Section 'mode' is deprecated; use '{$mode}Mode' in section 'variables' instead.", E_USER_WARNING);
-				$code .= $this->generateCode('$container->params[?] = ?', $mode . 'Mode', (bool) $state);
 			}
 		}
 
@@ -163,12 +163,6 @@ class Configurator extends Object
 		if (isset($config['services'])) {
 			$builder = new DI\ContainerBuilder;
 			foreach ($config['services'] as $key => $def) {
-				if (preg_match('#^Nette\\\\.*\\\\I?([a-zA-Z]+)$#', strtr($key, '-', '\\'), $m)) { // back compatibility
-					$m[1][0] = strtolower($m[1][0]);
-					trigger_error(basename($file) . ": service name '$key' has been renamed to '$m[1]'", E_USER_WARNING);
-					$key = $m[1];
-				}
-
 				if (is_array($def)) {
 					$definition = $builder->addDefinition($key, isset($def['class']) ? $def['class'] : NULL, !empty($def['prefer']));
 
@@ -176,20 +170,19 @@ class Configurator extends Object
 						$definition->setArguments(array_diff($def['arguments'], array('...')));
 					}
 
-					if (isset($def['methods'])) {
-						foreach ($def['methods'] as $item) {
-							$definition->addMethodCall($item[0], isset($item[1]) ? array_diff($item[1], array('...')) : array());
+					if (isset($def['calls'])) {
+						foreach ($def['calls'] as $item) {
+							$definition->addCall($item[0], isset($item[1]) ? array_diff($item[1], array('...')) : array());
 						}
 					}
 
 					if (isset($def['factory'])) {
 						$definition->setFactory($def['factory']);
+						if (!$definition->arguments) {
+							$definition->arguments[] = '@container';
+						}
 					} elseif (method_exists(get_called_class(), "createService$key") && !isset($def['factory']) && !isset($def['class'])) {
 						$definition->setFactory(array(get_called_class(), "createService$key"));
-					}
-
-					if (isset($def['option'])) {
-						$definition->arguments[] = $def['option'];
 					}
 
 					if (!empty($def['run'])) {
@@ -206,7 +199,7 @@ class Configurator extends Object
 						}
 					}
 
-					$def = array_diff(array_keys($def), array('class', 'prefer', 'arguments', 'methods', 'factory', 'option', 'run', 'tags'));
+					$def = array_diff(array_keys($def), array('class', 'prefer', 'arguments', 'calls', 'factory', 'run', 'tags'));
 					if ($def) {
 						throw new Nette\InvalidStateException("Unknown key '" . implode("', '", $def) . "' in definition of service '$key'.");
 					}
@@ -309,23 +302,16 @@ class Configurator extends Object
 	private static function generateCode($statement)
 	{
 		$args = func_get_args();
-		unset($args[0]);
-		foreach ($args as &$arg) {
-			$arg = var_export($arg, TRUE);
-			$arg = preg_replace("#(?<!\\\)'%([\w-]+)%'#", '\$container->params[\'$1\']', $arg);
-			$arg = preg_replace("#(?<!\\\)'(?:[^'\\\]|\\\.)*%(?:[^'\\\]|\\\.)*'#", '\$container->expand($0)', $arg);
-		}
-		if (strpos($statement, '?') === FALSE) {
-			return $statement .= '(' . implode(', ', $args) . ");\n\n";
-		}
-		$a = strpos($statement, '?');
-		$i = 1;
-		while ($a !== FALSE) {
-			$statement = substr_replace($statement, $args[$i], $a, 1);
-			$a = strpos($statement, '?', $a + strlen($args[$i]));
-			$i++;
-		}
-		return $statement . ";\n\n";
+		array_walk_recursive($args, function(&$val) {
+			if (is_string($val) && strpos($val, '%') !== FALSE) {
+				if (preg_match('#^%([\w-]+)%$#', $val)) {
+					$val = new Nette\Utils\PhpGenerator\PhpLiteral('$container->parameters[' . strtr($val, '%', "'") . ']');
+				} else {
+					$val = new Nette\Utils\PhpGenerator\PhpLiteral('$container->expand(' . Nette\Utils\PhpGenerator\Helpers::dump($val) . ')');
+				}
+			}
+		});
+		return call_user_func_array('Nette\Utils\PhpGenerator\Helpers::generate', $args) . "\n\n";
 	}
 
 
@@ -396,14 +382,14 @@ class Configurator extends Object
 		$context->addService('router', $container->router);
 
 		if (Nette\Application\UI\Presenter::$invalidLinkMode === NULL) {
-			Nette\Application\UI\Presenter::$invalidLinkMode = $container->params['productionMode']
+			Nette\Application\UI\Presenter::$invalidLinkMode = $container->parameters['productionMode']
 				? Nette\Application\UI\Presenter::INVALID_LINK_SILENT
 				: Nette\Application\UI\Presenter::INVALID_LINK_WARNING;
 		}
 
 		$class = isset($options['class']) ? $options['class'] : 'Nette\Application\Application';
 		$application = new $class($context);
-		$application->catchExceptions = $container->params['productionMode'];
+		$application->catchExceptions = $container->parameters['productionMode'];
 		if ($container->session->exists()) {
 		$application->onStartup[] = function() use ($container) {
 				$container->session->start(); // opens already started session
@@ -420,7 +406,7 @@ class Configurator extends Object
 	public static function createServicePresenterFactory(DI\Container $container)
 	{
 		return new Nette\Application\PresenterFactory(
-			isset($container->params['appDir']) ? $container->params['appDir'] : NULL,
+			isset($container->parameters['appDir']) ? $container->parameters['appDir'] : NULL,
 			$container
 		);
 	}
@@ -508,7 +494,7 @@ class Configurator extends Object
 	 */
 	public static function createServiceCacheStorage(DI\Container $container)
 	{
-		if (!isset($container->params['tempDir'])) {
+		if (!isset($container->parameters['tempDir'])) {
 			throw new Nette\InvalidStateException("Service cacheStorage requires that parameter 'tempDir' contains path to temporary directory.");
 		}
 		$dir = $container->expand('%tempDir%/cache');
@@ -524,7 +510,7 @@ class Configurator extends Object
 	 */
 	public static function createServiceTemplateCacheStorage(DI\Container $container)
 	{
-		if (!isset($container->params['tempDir'])) {
+		if (!isset($container->parameters['tempDir'])) {
 			throw new Nette\InvalidStateException("Service templateCacheStorage requires that parameter 'tempDir' contains path to temporary directory.");
 		}
 		$dir = $container->expand('%tempDir%/cache');
@@ -540,7 +526,7 @@ class Configurator extends Object
 	 */
 	public static function createServiceCacheJournal(DI\Container $container)
 	{
-		return new Nette\Caching\Storages\FileJournal($container->params['tempDir']);
+		return new Nette\Caching\Storages\FileJournal($container->parameters['tempDir']);
 	}
 
 
@@ -565,14 +551,14 @@ class Configurator extends Object
 	public static function createServiceRobotLoader(DI\Container $container, array $options = NULL)
 	{
 		$loader = new Nette\Loaders\RobotLoader;
-		$loader->autoRebuild = isset($options['autoRebuild']) ? $options['autoRebuild'] : !$container->params['productionMode'];
+		$loader->autoRebuild = isset($options['autoRebuild']) ? $options['autoRebuild'] : !$container->parameters['productionMode'];
 		$loader->setCacheStorage($container->cacheStorage);
 		if (isset($options['directory'])) {
 			$loader->addDirectory($options['directory']);
 		} else {
 			foreach (array('appDir', 'libsDir') as $var) {
-				if (isset($container->params[$var])) {
-					$loader->addDirectory($container->params[$var]);
+				if (isset($container->parameters[$var])) {
+					$loader->addDirectory($container->parameters[$var]);
 				}
 			}
 		}
