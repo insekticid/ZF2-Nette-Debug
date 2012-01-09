@@ -65,4 +65,14 @@ class Sqlite2Driver extends SqliteDriver
 		throw new NotSupportedException; // @see http://www.sqlite.org/foreignkeys.html
 	}
 
+
+
+	/**
+	 * @return bool
+	 */
+	public function isSupported($item)
+	{
+		return $item === self::META;
+	}
+
 }
