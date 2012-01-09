@@ -3,7 +3,7 @@
 /**
  * This file is part of the Nette Framework (http://nette.org)
  *
- * Copyright (c) 2004, 2011 David Grudl (http://davidgrudl.com)
+ * Copyright (c) 2004 David Grudl (http://davidgrudl.com)
  *
  * For the full copyright and license information, please view
  * the file license.txt that was distributed with this source code.
@@ -192,7 +192,7 @@ final class Helpers
 	public static function clickableDump($dump)
 	{
 		return '<pre class="nette-dump">' . preg_replace_callback(
-			'#^( *)((?>[^(]{1,200}))\((\d+)\) <code>#m',
+			'#^( *)((?>[^(\r\n]{1,200}))\((\d+)\) <code>#m',
 			function ($m) {
 				return "$m[1]<a href='#' rel='next'>$m[2]($m[3]) "
 					. (trim($m[1]) || $m[3] < 7

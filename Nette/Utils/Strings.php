@@ -3,7 +3,7 @@
 /**
  * This file is part of the Nette Framework (http://nette.org)
  *
- * Copyright (c) 2004, 2011 David Grudl (http://davidgrudl.com)
+ * Copyright (c) 2004 David Grudl (http://davidgrudl.com)
  *
  * For the full copyright and license information, please view
  * the file license.txt that was distributed with this source code.
@@ -123,9 +123,9 @@ class Strings
 	public static function substring($s, $start, $length = NULL)
 	{
 		if ($length === NULL) {
-			$length = PHP_INT_MAX;
+			$length = self::length($s);
 		}
-		return function_exists('mb_substr') ? mb_substr($s, $start, $length, 'UTF-8') : iconv_substr($s, $start, $length, 'UTF-8');
+		return function_exists('mb_substr') ? mb_substr($s, $start, $length, 'UTF-8') : iconv_substr($s, $start, $length, 'UTF-8'); // MB is much faster
 	}
 
 
@@ -316,7 +316,7 @@ class Strings
 	 */
 	public static function length($s)
 	{
-		return function_exists('mb_strlen') ? mb_strlen($s, 'UTF-8') : strlen(utf8_decode($s));
+		return strlen(utf8_decode($s)); // fastest way
 	}
 
 
@@ -517,47 +517,6 @@ class Strings
 			$code = preg_last_error();
 			throw new RegexpException((isset($messages[$code]) ? $messages[$code] : 'Unknown error') . " (pattern: $pattern)", $code);
 		}
-	}
-
-
-
-	/**
-	 * Expands %placeholders% in string.
-	 * @param  string
-	 * @param  array
-	 * @param  bool
-	 * @return mixed
-	 * @throws Nette\InvalidArgumentException
-	 */
-	public static function expand($s, array $params, $recursive = FALSE)
-	{
-		$parts = preg_split('#%([\w.-]*)%#i', $s, -1, PREG_SPLIT_DELIM_CAPTURE);
-		$res = '';
-		foreach ($parts as $n => $part) {
-			if ($n % 2 === 0) {
-				$res .= $part;
-
-			} elseif ($part === '') {
-				$res .= '%';
-
-			} elseif (isset($recursive[$part])) {
-				throw new Nette\InvalidArgumentException('Circular reference detected for variables: ' . implode(', ', array_keys($recursive)) . '.');
-
-			} else {
-				$val = Arrays::get($params, explode('.', $part));
-				if ($recursive && is_string($val)) {
-					$val = self::expand($val, $params, (is_array($recursive) ? $recursive : array()) + array($part => 1));
-				}
-				if (strlen($part) + 2 === strlen($s)) {
-					return $val;
-				}
-				if (!is_scalar($val)) {
-					throw new Nette\InvalidArgumentException("Unable to concatenate non-scalar parameter '$part' into '$s'.");
-				}
-				$res .= $val;
-			}
-		}
-		return $res;
 	}
 
 }

@@ -3,7 +3,7 @@
 /**
  * This file is part of the Nette Framework (http://nette.org)
  *
- * Copyright (c) 2004, 2011 David Grudl (http://davidgrudl.com)
+ * Copyright (c) 2004 David Grudl (http://davidgrudl.com)
  *
  * For the full copyright and license information, please view
  * the file license.txt that was distributed with this source code.
@@ -32,7 +32,7 @@ class Bar
 	 * Add custom panel.
 	 * @param  IBarPanel
 	 * @param  string
-	 * @return void
+	 * @return Bar  provides a fluent interface
 	 */
 	public function addPanel(IBarPanel $panel, $id = NULL)
 	{
@@ -43,6 +43,7 @@ class Bar
 			} while (isset($this->panels[$id]));
 		}
 		$this->panels[$id] = $panel;
+		return $this;
 	}
 
 
