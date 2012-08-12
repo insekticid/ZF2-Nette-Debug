@@ -1,5 +1,5 @@
 # ZF2 Debugger ported from Nette Framework
-## Provides user friendly error and exception handling.
+Provides user friendly error and exception handling.
 
 ## Features
 
