@@ -1,0 +1,29 @@
+{
+    "name": "webino/ZF2NetteDebug",
+    "description": "Nette Debugger for ZF2",
+    "type": "library",
+    "keywords": ["debug","debugger", "zf2"],
+    "homepage": "http://github.com/webino/Zf2NetteDebug",
+    "license": "New BSD License",
+    "authors": [
+        {
+            "name": "David Grudl",
+            "email": "david@grudl.com",
+            "homepage": "http://davidgrudl.com/",
+            "role": "Developer",
+            
+            "name": "Patrik Kolbl",
+            "email": "github@exploit.cz",
+            "homepage": "http://exploit.cz/",
+            "role": "Developer",
+
+            "name": "Peter Bačinský",
+            "email": "peter@bacinsky.sk",
+            "homepage": "http://www.bacinsky.sk/",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.0"
+    }
+}
