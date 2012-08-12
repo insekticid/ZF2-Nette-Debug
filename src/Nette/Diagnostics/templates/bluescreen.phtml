@@ -40,8 +40,8 @@ static $errorTypes = array(
 
 $title = ($exception instanceof Nette\FatalErrorException && isset($errorTypes[$exception->getSeverity()])) ? $errorTypes[$exception->getSeverity()] : get_class($exception);
 
-$expandPath = NETTE_DIR . DIRECTORY_SEPARATOR; // . 'Utils' . DIRECTORY_SEPARATOR . 'Object';
-$counter = 0;
+$expandPath = 0; // fix for ZF2
+$counter    = 0;
 
 ?><!DOCTYPE html><!-- "' --></script></style></pre></xmp></table>
 <html>
