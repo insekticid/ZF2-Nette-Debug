@@ -12,8 +12,8 @@ Provides user friendly error and exception handling.
 
 Following steps are necessary to get this module working (considering a zf2-skeleton or very similar application)
 
-  1. add `"webino/zf2nette-debug": "dev-master"` to your `composer.json` (`"minimum-stability": "dev"` is also required)
-  2. Add `Zf2NetteDebug` to the enabled modules list
+  1. Add `"webino/zf2nette-debug": "1.0.1"` to your `composer.json`
+  2. Add `ZF2NetteDebug` to the enabled modules list
 
 ## Showcase
 
