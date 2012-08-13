@@ -28,7 +28,7 @@
     },
     "autoload": {
         "psr-0": {
-            "ZF2NetteDebug": "/",
+            "ZF2NetteDebug": "/"
         }
     }
 }
