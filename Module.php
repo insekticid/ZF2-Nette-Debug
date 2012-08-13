@@ -20,7 +20,7 @@ use Nette\Diagnostics\Debugger;
 class Module
 {
     /**
-     * Setup Nette\Debuger with options
+     * Setup Nette\Debugger with options
      *
      * @param MvcEvent $e
      * @return void
