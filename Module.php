@@ -56,7 +56,6 @@ class Module
         !array_key_exists('strict', $config['nette_debug']) or
             Debugger::$strictMode = $config['nette_debug']['strict'];
 
-
         !array_key_exists('max_depth', $config['nette_debug']) or
             Debugger::$maxDepth = $config['nette_debug']['max_depth'];
 
