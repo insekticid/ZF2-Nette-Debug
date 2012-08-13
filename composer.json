@@ -28,7 +28,7 @@
     },
     "autoload": {
         "classmap": [
-            "src/Module.php"
+            "Module.php"
         ]
     }
 }
