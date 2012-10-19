@@ -12,13 +12,19 @@ Provides user friendly error and exception handling.
 
 Following steps are necessary to get this module working (considering a zf2-skeleton or very similar application)
 
-  1. Add `"webino/zf2nette-debug": "1.0.1"` to your `composer.json`
+  1. Run `composer require webino/zf2nette-debug:1.1.0`
   2. Add `ZF2NetteDebug` to the enabled modules list
 
 ## Showcase
 
 ![local error](http://files.nette.org/2398/debugger2.png "Errors & Exceptions")
 ![public error](http://files.nette.org/2398/debugger3.png "Title")
+
+## Changelog
+
+### 1.1.0
+
+- Nette bar disabled by default + toggle option.
 
 ## About Nette Debugger
 
