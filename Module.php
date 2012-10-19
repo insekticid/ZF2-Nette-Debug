@@ -35,18 +35,23 @@ class Module
         ) return;
 
         require __DIR__ . '/src/Nette/Diagnostics/exceptions.php';
-
-        Debugger::_init();
+        
+        array_key_exists('bar', $config['nette_debug']) or
+            $config['nette_debug']['bar'] = true;
 
         array_key_exists('mode', $config['nette_debug']) or
             $config['nette_debug']['mode'] = null;
-
+        
         array_key_exists('log', $config['nette_debug']) or
             $config['nette_debug']['log'] = null;
 
         array_key_exists('email', $config['nette_debug']) or
             $config['nette_debug']['email'] = null;
 
+        Debugger::_init();
+        
+        $config['nette_debug']['bar'] or Debugger::$bar = null;
+        
         Debugger::enable(
             $config['nette_debug']['mode'],
             $config['nette_debug']['log'],
@@ -91,7 +96,7 @@ class Module
             ),
             'Zend\Loader\StandardAutoloader' => array(
                 'namespaces' => array(
-                    __NAMESPACE__ => __DIR__ . '/src/' . __NAMESPACE__,
+                    'Nette' => __DIR__ . '/src/Nette',
                 ),
             ),
         );

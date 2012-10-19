@@ -24,9 +24,17 @@
         }
     ],
     "require": {
-        "php": ">=5.3.0"
+        "php": ">=5.3.3",
+        "zendframework/zendframework": "2.*"
+    },
+    "suggest": {
+        "zendframework/ZendDeveloperTools": "Module for developer and debug tools for working with the ZF2 MVC layer. ",
+        "webino/WebinoDraw": "XHTML Layout Renderer for Zend Framework"
     },
     "autoload": {
+        "psr-0": {
+            "Nette": "src/"
+        },
         "classmap": [
             "Module.php"
         ]
