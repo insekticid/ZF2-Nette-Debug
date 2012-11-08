@@ -12,7 +12,7 @@ Provides user friendly error and exception handling.
 
 Following steps are necessary to get this module working (considering a zf2-skeleton or very similar application)
 
-  1. Run `composer require webino/zf2nette-debug:1.1.0`
+  1. Run `php composer.phar require webino/zf2nette-debug:1.*`
   2. Add `ZF2NetteDebug` to the enabled modules list
 
 ## Showcase
@@ -21,6 +21,10 @@ Following steps are necessary to get this module working (considering a zf2-skel
 ![public error](http://files.nette.org/2398/debugger3.png "Title")
 
 ## Changelog
+
+### 1.1.1
+
+- Fix error/index Can only throw objects Fatal Error.
 
 ### 1.1.0
 
