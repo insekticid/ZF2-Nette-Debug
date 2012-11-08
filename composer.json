@@ -1,0 +1,42 @@
+{
+    "name": "webino/zf2nette-debug",
+    "description": "Nette Debugger for ZF2",
+    "type": "library",
+    "keywords": ["debug","debugger", "zf2"],
+    "homepage": "http://github.com/webino/Zf2NetteDebug",
+    "license": "New BSD License",
+    "authors": [
+        {
+            "name": "David Grudl",
+            "email": "david@grudl.com",
+            "homepage": "http://davidgrudl.com/",
+            "role": "Developer",
+            
+            "name": "Patrik Kolbl",
+            "email": "github@exploit.cz",
+            "homepage": "http://exploit.cz/",
+            "role": "Developer",
+
+            "name": "Peter Bačinský",
+            "email": "peter@bacinsky.sk",
+            "homepage": "http://www.bacinsky.sk/",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.3",
+        "zendframework/zendframework": "2.*"
+    },
+    "suggest": {
+        "zendframework/ZendDeveloperTools": "Module for developer and debug tools for working with the ZF2 MVC layer. ",
+        "webino/WebinoDraw": "XHTML Layout Renderer for Zend Framework"
+    },
+    "autoload": {
+        "psr-0": {
+            "Nette": "src/"
+        },
+        "classmap": [
+            "Module.php"
+        ]
+    }
+}
